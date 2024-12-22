@@ -1,4 +1,6 @@
 import asyncio
+from datetime import datetime
+import re
 import discord
 import configparser
 import aiohttp
@@ -41,8 +43,6 @@ async def start():
 
     for incident in incidents:
         incidents2.append(incident[0])
-    print(incidents2)
-
 
     for event in parsed_api['events']:
         config.read('history.ini')
@@ -89,12 +89,24 @@ async def check_if_should_be_notified(event, title_prefix):
 
 async def send_webhook(trigger, event, title_prefix):
     event_short_id = event['id'].split('/')[1]
+    unix_timestamps = await get_unix_timestamps_from_event(event)
+
     async with aiohttp.ClientSession() as session:
         embed = discord.Embed(title=f"{title_prefix} DriveBC Event")
         embed.add_field(name="Triggered By", value=trigger)
         embed.add_field(name="Road", value=event['roads'][0]['name'])
         embed.add_field(name="Direction", value=event['roads'][0]['direction'])
-        embed.add_field(name="Last Updated", value=event['updated'])
+
+        if unix_timestamps[1] is None:
+            embed.add_field(name="Last Updated", value=f"N/A")
+        else:
+            embed.add_field(name="Last Updated", value=f"<t:{unix_timestamps[1]}:R>")
+
+        if unix_timestamps[0] is None:
+            embed.add_field(name="Next Updated", value=f"N/A")
+        else:
+            embed.add_field(name="Next Updated", value=f"<t:{unix_timestamps[0]}:R>")
+
         embed.add_field(name="Links", value=f"https://beta.drivebc.ca/?type=event&id={event_short_id}")
         webhook = discord.Webhook.from_url(discord_webhook_url, session=session)
         await webhook.send(embed=embed)
@@ -107,6 +119,37 @@ async def send_webhook_removed(event_id):
         embed.add_field(name="Links", value=f"https://beta.drivebc.ca/?type=event&id={event_short_id.upper()}")
         webhook = discord.Webhook.from_url(discord_webhook_url, session=session)
         await webhook.send(embed=embed)
+
+async def get_unix_timestamps_from_event(event):
+    event_description = event['description']
+    event_next_update = event_description.split('.')[-3]
+    event_last_updated = event_description.split('.')[-2]
+    event_next_update_unix = await get_unix_timestamp_from_description(event_next_update)
+    event_last_update_unix = await get_unix_timestamp_from_description(event_last_updated)
+    return [event_next_update_unix, event_last_update_unix]
+
+async def get_unix_timestamp_from_description(description):
+    description_split = description.split(' ')
+    if description_split[-1] != "PST":
+        return None
+    if len(description_split[-5]) == 4:
+        pattern = r"(\w{3}) (\w{3}) (\d{1,2}), (\d{4}) at (\d{1,2}:\d{2} [APM]{2}) PST$"
+        match = re.search(pattern, description)
+        day_of_week, month, day, year, time_part = match.groups()
+        timestamp_str = f"{day_of_week} {month} {day}, {year} at {time_part}"
+        datetime_obj = datetime.strptime(timestamp_str, "%a %b %d, %Y at %I:%M %p")
+        return int(datetime_obj.timestamp())
+    elif len(description_split[-5]) == 1 or len(description_split[-5]) == 2:
+        pattern = r"(\w{3}) (\w{3}) (\d{1,2}) at (\d{1,2}:\d{2} [APM]{2}) PST$"
+        match = re.search(pattern, description)
+        day_of_week, month, day, time_part = match.groups()
+        current_year = datetime.now().year
+        timestamp_str = f"{day_of_week} {month} {day}, {current_year} at {time_part}"
+        datetime_obj = datetime.strptime(timestamp_str, "%a %b %d, %Y at %I:%M %p")
+        return int(datetime_obj.timestamp())
+    else:
+        return None
+
 
 if __name__ == "__main__":
     while True:
