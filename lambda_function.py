@@ -13,7 +13,12 @@ discord_webhook_url = os.environ['DISCORD_WEBHOOK_URL']
 discord_webhook_log_url = os.environ['DISCORD_WEBHOOK_LOG_URL']
 
 def lambda_handler(event, context):
-    asyncio.run(start())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        loop.run_until_complete(start())
+    finally:
+        loop.close()
     return {
         'statusCode': 200,
         'body': 'Lambda function executed successfully'
