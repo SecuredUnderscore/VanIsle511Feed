@@ -45,20 +45,26 @@ async def start():
 
     parsed_api = api.json()
 
+
     incidents = table_active.scan()['Items']
     incidents2 = []
-
     for incident in incidents:
-        incidents2.append(incident.get('event-id'))
+        incidents2.append(incident.get('event-id').lower())
+
+
+    events_last_updated: dict = table_last_updated.scan()['Items']
+    events_last_updated2 = []
+    for event in events_last_updated:
+        events_last_updated2.append(event.get('event-id'))
 
     for event in parsed_api['events']:
 
         event_id = event['id']
         event_updated = event['updated']
 
-        event_last_updated_item = table_last_updated.get_item(Key={'event-id': event_id})
-        if "Item" in event_last_updated_item:
-            event_last_updated = event_last_updated_item['Item']['last-updated']
+        event_last_updated_item = next((item for item in events_last_updated if item['event-id'] == event_id), None)
+        if event_last_updated_item is not None:
+            event_last_updated = event_last_updated_item['last-updated']
             if event_last_updated != event_updated:
                 table_last_updated.put_item(Item={'event-id': event_id, 'last-updated': event_updated})
                 await check_if_should_be_notified(event=event, title_prefix="Updated")
@@ -67,17 +73,29 @@ async def start():
             await check_if_should_be_notified(event=event, title_prefix="New")
             if event['headline'] == 'INCIDENT':
                 incidents.append(event_id)
-
-            if event['headline'] == 'INCIDENT':
-                try:
-                    incidents2.remove(event_id.lower())
-                except ValueError:
-                    pass
                 table_active.put_item(Item={'event-id': event_id})
+
+        if event['headline'] == 'INCIDENT':
+            try:
+                incidents2.remove(event_id.lower())
+            except ValueError:
+                pass
+
+        try:
+            events_last_updated2.remove(event_id)
+        except ValueError:
+            pass
+
 
     for incident in incidents2:
         await send_webhook_removed(incident)
         table_active.delete_item(Key={'event-id': incident})
+
+    for event in events_last_updated2:
+        print(f"removing {event}")
+        table_last_updated.delete_item(Key={'event-id': event})
+
+    await send_log("Script Completed")
 
 async def check_if_should_be_notified(event, title_prefix):
     if event['headline'] == 'INCIDENT':
@@ -105,6 +123,7 @@ async def send_webhook(trigger, event, title_prefix):
             embed.add_field(name="Next Update", value=f"<t:{unix_timestamps[0]}:R>")
 
         embed.add_field(name="Links", value=f"https://beta.drivebc.ca/?type=event&id={event_short_id}")
+        embed.set_footer(text="https://www2.gov.bc.ca/gov/content/data/policy-standards/open-data/open-government-licence-bc")
         webhook = discord.Webhook.from_url(discord_webhook_url, session=session)
         await webhook.send(embed=embed)
 
@@ -113,6 +132,7 @@ async def send_webhook_removed(event_id):
     async with aiohttp.ClientSession() as session:
         embed = discord.Embed(title=f"Removed DriveBC Event")
         embed.add_field(name="ID", value=event_short_id.upper())
+        embed.set_footer(text="https://www2.gov.bc.ca/gov/content/data/policy-standards/open-data/open-government-licence-bc")
         webhook = discord.Webhook.from_url(discord_webhook_url, session=session)
         await webhook.send(embed=embed)
 
