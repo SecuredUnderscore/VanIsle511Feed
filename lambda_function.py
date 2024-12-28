@@ -1,11 +1,12 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import discord
 import aiohttp
 import requests
 import os
 import boto3
+from dateutil import parser
 
 check_feed_delay = 60
 feed_url = "https://api.open511.gov.bc.ca/events?area_id=drivebc.ca/2"
@@ -187,11 +188,8 @@ async def get_unix_timestamp_from_description(description):
 
 # Get unix timestamp from a timestamp like: 2024-12-19T13:40:20-08:00
 async def get_unix_timestamp_from_timestamp(timestamp):
-    # Remove the time zone offset (-08:00, or -07:00) from the string
-    cleaned_timestamp = timestamp.rsplit("-", 1)[0]
-
-    # Parse the cleaned timestamp
-    datetime_obj = datetime.strptime(cleaned_timestamp, "%Y-%m-%dT%H:%M:%S")
+    # Parse the timestamp with timezone information
+    datetime_obj = parser.isoparse(timestamp)
 
     # Convert to Unix timestamp
     return int(datetime_obj.timestamp())
