@@ -2,24 +2,31 @@ import asyncio
 from datetime import datetime
 import re
 import discord
-import configparser
 import aiohttp
-import time
 import requests
+import os
+import boto3
 
-# Constants
 check_feed_delay = 60
 feed_url = "https://api.open511.gov.bc.ca/events?area_id=drivebc.ca/2"
+discord_webhook_url = os.environ['DISCORD_WEBHOOK_URL']
+discord_webhook_log_url = os.environ['DISCORD_WEBHOOK_LOG_URL']
 
-# Begin and read config file
-config = configparser.ConfigParser()
-config.read('env.ini')
-discord_webhook_url = config['Constants']['discord_webhook_url']
-discord_webhook_log_url = config['Constants']['discord_webhook_log_url']
-
-config = configparser.ConfigParser()
+def lambda_handler(event, context):
+    asyncio.run(start())
+    return {
+        'statusCode': 200,
+        'body': 'Lambda function executed successfully'
+    }
 
 async def start():
+    # Create database clients
+    dynamodb = boto3.resource('dynamodb')
+    database_name_last_updated = os.environ['DB_NAME_LAST_UPDATED']
+    table_last_updated = dynamodb.Table(database_name_last_updated)
+    database_name_active = os.environ['DB_NAME_ACTIVE']
+    table_active = dynamodb.Table(database_name_active)
+
     try:
         api = requests.get(feed_url)
     except ConnectionError:
@@ -33,54 +40,44 @@ async def start():
 
     parsed_api = api.json()
 
-    config.read('history.ini')
-    incidents = config.items('Incidents')
+    incidents = table_active.scan()['Items']
     incidents2 = []
 
     for incident in incidents:
-        incidents2.append(incident[0])
+        incidents2.append(incident.get('event-id'))
 
     for event in parsed_api['events']:
-        config.read('history.ini')
 
         event_id = event['id']
         event_updated = event['updated']
 
-        try:
-            event_last_updated = config.get('Last Updated', event_id)
+        event_last_updated_item = table_last_updated.get_item(Key={'event-id': event_id})
+        if "Item" in event_last_updated_item:
+            event_last_updated = event_last_updated_item['Item']['last-updated']
             if event_last_updated != event_updated:
-                config.set('Last Updated', event_id, event_updated)
-                with open('history.ini', 'w') as configfile:
-                    config.write(configfile)
+                table_last_updated.put_item(Item={'event-id': event_id, 'last-updated': event_updated})
                 await check_if_should_be_notified(event=event, title_prefix="Updated")
-        except configparser.NoOptionError:
-            config.set('Last Updated', event_id, event_updated)
-            with open('history.ini', 'w') as configfile:
-                config.write(configfile)
+        else:
+            table_last_updated.put_item(Item={'event-id': event_id, 'last-updated': event_updated})
             await check_if_should_be_notified(event=event, title_prefix="New")
             if event['headline'] == 'INCIDENT':
                 incidents.append(event_id)
 
-        if event['headline'] == 'INCIDENT':
-            try:
-                incidents2.remove(event_id.lower())
-            except ValueError:
-                pass
-            config.set('Incidents', event_id, "0")
-            with open('history.ini', 'w') as configfile:
-                config.write(configfile)
+            if event['headline'] == 'INCIDENT':
+                try:
+                    incidents2.remove(event_id.lower())
+                except ValueError:
+                    pass
+                table_active.put_item(Item={'event-id': event_id})
 
-    config.read('history.ini')
     for incident in incidents2:
         await send_webhook_removed(incident)
-        config.remove_option('Incidents', incident)
-        with open('history.ini', 'w') as configfile:
-            config.write(configfile)
+        table_active.delete_item(Key={'event-id': incident})
 
 async def check_if_should_be_notified(event, title_prefix):
     if event['headline'] == 'INCIDENT':
         await send_webhook(trigger="Incident", event=event, title_prefix=title_prefix)
-    elif "Closure" in event['description'] or 'closure' in event['description'] or 'closed' in event['description']:
+    elif "Closure" in event['description'] or 'closure' in event['description'] or 'closed' in event['description'] or 'impassible' in event['description']:
         await send_webhook(trigger="Closure Involved", event=event, title_prefix=title_prefix)
 
 async def send_webhook(trigger, event, title_prefix):
@@ -181,7 +178,9 @@ async def send_log(text):
         await webhook.send(embed=embed)
 
 if __name__ == "__main__":
-    asyncio.run(send_log("Script started"))
-    while True:
-        asyncio.run(start())
-        time.sleep(check_feed_delay)
+    # asyncio.run(send_log("Script started"))
+    asyncio.run(start())
+
+    # while True:
+    #     asyncio.run(start())
+    #     time.sleep(check_feed_delay)
