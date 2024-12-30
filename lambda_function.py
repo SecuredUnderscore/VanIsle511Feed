@@ -170,7 +170,7 @@ async def get_unix_timestamp_from_description(description):
         shifted_datetime = datetime_obj - timedelta(hours=8)  # Add 8-hour shift
         return int(shifted_datetime.timestamp())  # Return shifted unix value of the datetime object
 
-    elif len(event_description_split[-5]) == 1 or len(event_description_split[-5]) == 2 and event_description_split[-5].isnumeric()  # If description does not contain a year
+    elif len(event_description_split[-5]) == 1 or len(event_description_split[-5]) == 2 and event_description_split[-5].isnumeric():  # If description does not contain a year
         pattern = r"(\w{3}) (\w{3}) (\d{1,2}) at (\d{1,2}:\d{2} [APM]{2}) PST$"
         match = re.search(pattern, description)
         if not match:
