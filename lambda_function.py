@@ -155,24 +155,22 @@ async def get_unix_timestamps_from_event(event):
 async def get_unix_timestamp_from_description(description):
     # Split words in description to find the description format (If it includes a year or something)
     event_description_split = description.split(' ')
-
     if event_description_split[-1] != "PST": # If description does not include a timestamp
         return None
-
     if len(event_description_split[-5]) == 4 and event_description_split[-5].isnumeric(): # If description includes a year
         # Search if description contains this pattern
         pattern = r"(\w{3}) (\w{3}) (\d{1,2}), (\d{4}) at (\d{1,2}:\d{2} [APM]{2}) PST$"
         match = re.search(pattern, description)
         if not match: # If pattern could not be matched
             return None
-
         # Assign each time property (day, month, year, etc.) to a datetime object
         day_of_week, month, day, year, time_part = match.groups()
         timestamp_str = f"{day_of_week} {month} {day}, {year} at {time_part}"
         datetime_obj = datetime.strptime(timestamp_str, "%a %b %d, %Y at %I:%M %p")
-        return int(datetime_obj.timestamp()) # Return unix value of the datetime object
+        shifted_datetime = datetime_obj - timedelta(hours=8)  # Add 8-hour shift
+        return int(shifted_datetime.timestamp())  # Return shifted unix value of the datetime object
 
-    elif len(event_description_split[-5]) == 1 or len(event_description_split[-5]) == 2 and event_description_split[-5].isnumeric(): # If description does not contain a year
+    elif len(event_description_split[-5]) == 1 or len(event_description_split[-5]) == 2 and event_description_split[-5].isnumeric()  # If description does not contain a year
         pattern = r"(\w{3}) (\w{3}) (\d{1,2}) at (\d{1,2}:\d{2} [APM]{2}) PST$"
         match = re.search(pattern, description)
         if not match:
@@ -181,7 +179,8 @@ async def get_unix_timestamp_from_description(description):
         current_year = datetime.now().year
         timestamp_str = f"{day_of_week} {month} {day}, {current_year} at {time_part}"
         datetime_obj = datetime.strptime(timestamp_str, "%a %b %d, %Y at %I:%M %p")
-        return int(datetime_obj.timestamp())
+        shifted_datetime = datetime_obj - timedelta(hours=8)  # Add 8-hour shift
+        return int(shifted_datetime.timestamp())  # Return shifted unix value of the datetime object
 
     else:
         return None
