@@ -167,7 +167,7 @@ async def get_unix_timestamp_from_description(description):
         day_of_week, month, day, year, time_part = match.groups()
         timestamp_str = f"{day_of_week} {month} {day}, {year} at {time_part}"
         datetime_obj = datetime.strptime(timestamp_str, "%a %b %d, %Y at %I:%M %p")
-        shifted_datetime = datetime_obj - timedelta(hours=8)  # Add 8-hour shift
+        shifted_datetime = datetime_obj + timedelta(hours=8)  # Add 8-hour shift
         return int(shifted_datetime.timestamp())  # Return shifted unix value of the datetime object
 
     elif len(event_description_split[-5]) == 1 or len(event_description_split[-5]) == 2 and event_description_split[-5].isnumeric():  # If description does not contain a year
@@ -179,7 +179,7 @@ async def get_unix_timestamp_from_description(description):
         current_year = datetime.now().year
         timestamp_str = f"{day_of_week} {month} {day}, {current_year} at {time_part}"
         datetime_obj = datetime.strptime(timestamp_str, "%a %b %d, %Y at %I:%M %p")
-        shifted_datetime = datetime_obj - timedelta(hours=8)  # Add 8-hour shift
+        shifted_datetime = datetime_obj + timedelta(hours=8)  # Add 8-hour shift
         return int(shifted_datetime.timestamp())  # Return shifted unix value of the datetime object
 
     else:
