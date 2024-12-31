@@ -50,7 +50,7 @@ async def start():
     incidents = table_active.scan()['Items']
     incidents2 = []
     for incident in incidents:
-        incidents2.append(incident.get('event-id').lower())
+        incidents2.append(incident.get('event-id'))
 
 
     events_last_updated: dict = table_last_updated.scan()['Items']
@@ -78,7 +78,7 @@ async def start():
 
         if event['headline'] == 'INCIDENT':
             try:
-                incidents2.remove(event_id.lower())
+                incidents2.remove(event_id)
             except ValueError:
                 pass
 
@@ -114,8 +114,11 @@ async def send_webhook(trigger, event, title_prefix):
         embed = discord.Embed(title=f"{title_prefix} DriveBC Event")
         embed.add_field(name="ID", value=event_short_id.upper())
         embed.add_field(name="Triggered By", value=trigger)
-        embed.add_field(name="Road", value=event['roads'][0]['name'])
         embed.add_field(name="Direction", value=event['roads'][0]['direction'])
+        embed.add_field(name="Road", value=event['roads'][0]['name'])
+        embed.add_field(name="From", value=event['roads'][0]['from'])
+        embed.add_field(name="To", value=event['roads'][0]['to'])
+        embed.add_field(name="Description", value=event['description'], inline=False)
         embed.add_field(name="Last Updated", value=f"<t:{unix_timestamps[1]}:R>")
 
         if unix_timestamps[0] is None:
