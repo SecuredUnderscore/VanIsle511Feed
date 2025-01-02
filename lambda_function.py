@@ -93,7 +93,6 @@ async def start():
         table_active.delete_item(Key={'event-id': incident})
 
     for event in events_last_updated2:
-        print(f"removing {event}")
         table_last_updated.delete_item(Key={'event-id': event})
 
     await send_log("Script Completed")
