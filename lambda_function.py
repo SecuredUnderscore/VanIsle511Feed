@@ -115,8 +115,11 @@ async def send_webhook(trigger, event, title_prefix):
         embed.add_field(name="Triggered By", value=trigger)
         embed.add_field(name="Direction", value=event['roads'][0]['direction'])
         embed.add_field(name="Road", value=event['roads'][0]['name'])
-        embed.add_field(name="From", value=event['roads'][0]['from'])
-        embed.add_field(name="To", value=event['roads'][0]['to'])
+        try:
+            embed.add_field(name="From", value=event['roads'][0]['from'])
+            embed.add_field(name="To", value=event['roads'][0]['to'])
+        except KeyError:
+            pass
         embed.add_field(name="Description", value=event['description'], inline=False)
         embed.add_field(name="Last Updated", value=f"<t:{unix_timestamps[1]}:R>")
 
