@@ -134,10 +134,9 @@ async def send_webhook(trigger, event, title_prefix):
         await webhook.send(embed=embed)
 
 async def send_webhook_removed(event_id):
-    event_short_id = event_id.split('/')[1]
     async with aiohttp.ClientSession() as session:
         embed = discord.Embed(title=f"Removed DriveBC Event")
-        embed.add_field(name="ID", value=event_short_id.upper())
+        embed.add_field(name="ID", value=event_id)
         embed.set_footer(text="https://www2.gov.bc.ca/gov/content/data/policy-standards/open-data/open-government-licence-bc")
         webhook = discord.Webhook.from_url(discord_webhook_url, session=session)
         await webhook.send(embed=embed)
