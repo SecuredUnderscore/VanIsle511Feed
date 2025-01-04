@@ -89,7 +89,7 @@ async def start():
 
 
     for incident in incidents2:
-        # await send_webhook_removed(incident)
+        await send_webhook_removed(incident)
         table_active.delete_item(Key={'event-id': incident})
 
     for event in events_last_updated2:
