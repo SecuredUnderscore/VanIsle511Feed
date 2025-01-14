@@ -99,8 +99,8 @@ async def start():
 
 async def check_if_should_be_notified(event, title_prefix):
     if event['headline'] == 'INCIDENT':
-        await send_webhook(trigger="Incident", event=event, title_prefix=title_prefix)
-    elif "Closure" in event['description'] or 'closure' in event['description'] or 'closed' in event['description'] or 'impassible' in event['description']:
+        await send_webhook(trigger="Incident", event=event, title_prefix=title_prefix + " Incident")
+    elif "not permitted" in event['description'].lower() or 'closure' in event['description'].lower() or 'closed' in event['description'].lower() or 'impassible' in event['description'].lower():
         await send_webhook(trigger="Closure Involved", event=event, title_prefix=title_prefix)
 
 async def send_webhook(trigger, event, title_prefix):
