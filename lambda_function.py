@@ -133,7 +133,6 @@ async def send_webhook(trigger, event, title_prefix):
         webhook = discord.Webhook.from_url(discord_webhook_url, session=session)
         await webhook.send(embed=embed)
 
-
 async def send_webhook_removed(event_id):
     async with aiohttp.ClientSession() as session:
         embed = discord.Embed(title=f"Removed DriveBC Event")
