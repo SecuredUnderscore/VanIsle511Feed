@@ -115,7 +115,7 @@ async def send_webhook(trigger, event, title_prefix):
         "title": f"{title_prefix} DriveBC Event",
         "message": f"{event['roads'][0]['name']} https://beta.drivebc.ca/?type=event&id={event_short_id} {event['description']} ",
         "priority": "1" if trigger == "Incident" else "0",
-        "sound": "climb",
+        "sound": "climb" if trigger == "Incident" else "gamelan",
     }
 
     requests.post("https://api.pushover.net/1/messages.json", data=data)
