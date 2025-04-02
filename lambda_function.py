@@ -12,6 +12,8 @@ check_feed_delay = 60
 feed_url = "https://api.open511.gov.bc.ca/events?area_id=drivebc.ca/2"
 discord_webhook_url = os.environ['DISCORD_WEBHOOK_URL']
 discord_webhook_log_url = os.environ['DISCORD_WEBHOOK_LOG_URL']
+pushover_api_token = os.environ['PUSHOVER_API_TOKEN']
+pushover_user_key = os.environ['PUSHOVER_USER_KEY']
 
 def lambda_handler(event, context):
     loop = asyncio.new_event_loop()
@@ -106,6 +108,18 @@ async def check_if_should_be_notified(event, title_prefix):
 async def send_webhook(trigger, event, title_prefix):
     event_short_id = event['id'].split('/')[1]
 
+    # PUSHOVER NOTIFICATION
+    data = {
+        "token": pushover_api_token,
+        "user": pushover_user_key,
+        "title": f"{title_prefix} DriveBC Event",
+        "message": f"{event['roads'][0]['name']} https://beta.drivebc.ca/?type=event&id={event_short_id} {event['description']} ",
+        "priority": "1" if trigger == "Incident" else "0",
+        "sound": "climb",
+    }
+
+    requests.post("https://api.pushover.net/1/messages.json", data=data)
+
     # Get "Last Updated" and "Next Update" timestamps in unix style from event
     unix_timestamps = await get_unix_timestamps_from_event(event)
 
@@ -135,6 +149,18 @@ async def send_webhook(trigger, event, title_prefix):
 
 
 async def send_webhook_removed(event_id):
+    # PUSHOVER NOTIFICATION
+    data = {
+        "token": pushover_api_token,
+        "user": pushover_user_key,
+        "title": f"Removed DriveBC Event",
+        "message": f"ID: {event_id}",
+        "priority": 0,
+        "sound": "climb",
+    }
+
+    requests.post("https://api.pushover.net/1/messages.json", data=data)
+
     async with aiohttp.ClientSession() as session:
         embed = discord.Embed(title=f"Removed DriveBC Event")
         embed.add_field(name="ID", value=event_id)
