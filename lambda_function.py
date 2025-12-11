@@ -24,7 +24,7 @@ def lambda_handler(event, context):
         loop.close()
     return {
         'statusCode': 200,
-        'body': 'Lambda function executed successfully'
+        'body': 'Lambda function executed successfully!'
     }
 
 async def start():
